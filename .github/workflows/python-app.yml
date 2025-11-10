@@ -63,7 +63,7 @@ jobs:
           if [ ! -f package.json ]; then
             npm init -y
           fi
-          npm install hexo hexo-cli --no-audit --no-fund
+          npm install
           npx hexo generate
 
       - name: Deploy Hexo public to gh-pages
