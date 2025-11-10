@@ -1,1 +1,4 @@
+cs.AI
 cs.CV
+cs.MM
+eess.SP
