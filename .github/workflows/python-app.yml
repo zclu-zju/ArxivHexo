@@ -1,8 +1,6 @@
 name: arXiv Crawler
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       build_hexo:
@@ -54,7 +52,8 @@ jobs:
         if: env.BUILD_HEXO == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          # Hexo 8.x requires Node >= 20.19.0; use Node 20 to satisfy engines
+          node-version: '25'
 
       - name: Build Hexo site
         if: env.BUILD_HEXO == 'true'
