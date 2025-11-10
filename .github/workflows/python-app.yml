@@ -1,0 +1,75 @@
+name: arXiv Crawler
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_hexo:
+        description: 'If true, build hexo_site and deploy public to gh-pages'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '0 1 * * *' # run daily at 01:00 UTC
+
+jobs:
+  run-crawler:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_HEXO: ${{ github.event.inputs.build_hexo || 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ensure subjects file
+        run: |
+          if [ ! -f subjects.txt ]; then
+            printf "cs.AI\ncs.LG\n" > subjects.txt
+          fi
+
+      - name: Run crawler
+        run: |
+          python crawler.py --subjects-file subjects.txt --output data/papers.json --delay 3
+
+      - name: Export Hexo content
+        run: |
+          python export_to_hexo.py --index data/index.json --hexo-dir hexo_site --page-size 100 --highlights 5 --subject-prefixes cs.,eess.
+      - name: Upload Hexo content artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hexo-content
+          path: hexo_site
+
+      - name: Set up Node (for optional Hexo build)
+        if: env.BUILD_HEXO == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build Hexo site
+        if: env.BUILD_HEXO == 'true'
+        working-directory: ./hexo_site
+        run: |
+          # initialize package.json if missing
+          if [ ! -f package.json ]; then
+            npm init -y
+          fi
+          npm install hexo hexo-cli --no-audit --no-fund
+          npx hexo generate
+
+      - name: Deploy Hexo public to gh-pages
+        if: env.BUILD_HEXO == 'true'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          publish_dir: ./hexo_site/public
+          github_token: ${{ secrets.GITHUB_TOKEN }}
